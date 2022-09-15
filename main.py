@@ -9,9 +9,7 @@ import serial
 from time import sleep
 
 from matplotlib.artist import Artist
-from matplotlib.colors import ListedColormap
 from matplotlib.pyplot import imread, pause, subplots
-import matplotlib.cm as cm
 
 SOUND_SPEED_MPS = 343.0
 MAX_DISTANCE_CM = 20
