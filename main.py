@@ -8,8 +8,9 @@ from typing import Any
 import serial
 from time import sleep
 
+from matplotlib.artist import Artist
 from matplotlib.colors import ListedColormap
-from matplotlib.pyplot import pause, subplots
+from matplotlib.pyplot import imread, pause, subplots
 import matplotlib.cm as cm
 
 SOUND_SPEED_MPS = 343.0
@@ -81,10 +82,26 @@ class Plotter:
         self._pulser = pulser
         self._length_in_values = int(floor(length_s * self._pulser.rate_hz))
         self._memory = []
-        fig, self._ax = subplots(1, 1)
-        fig.canvas.mpl_connect('close_event', self._on_close)
+        self._fig, self._ax = subplots(1, 1)
+        self._fig.canvas.mpl_connect('close_event', self._on_close)
+        self._fig.canvas.mpl_connect('resize_event', self._on_resize)
         self._ax.plot(self._memory)
         self._avg_len = avg_len
+        self._needle_image = self._add_needle_image()
+        self._fig.patch.set_facecolor('xkcd:pastel blue')
+        self._ax.set_facecolor('xkcd:pastel blue')
+
+    def _on_resize(self, event) -> None:
+        self._needle_image.remove()
+        self._needle_image = self._add_needle_image()
+
+    def _add_needle_image(self) -> Artist:
+        nx = int(self._fig.get_figwidth() * self._fig.dpi)
+        ny = int(self._fig.get_figheight() * self._fig.dpi)
+        needle_image = imread("assets/needle_2.png")
+        return self._fig.figimage(needle_image,
+                                  xo=nx * 0.8,
+                                  yo=ny * 0.87)
 
     def _on_close(self, event: Any):
         self._pulser.stop()
@@ -109,8 +126,9 @@ class Plotter:
             self._ax.cla()
 
             alphas = [i / self._length_in_values for i in range(self._length_in_values)]
-            self._ax.scatter(range(len(plot_data)), plot_data, alpha=alphas)
+            self._ax.scatter(range(len(plot_data)), plot_data, c='xkcd:deep pink', alpha=alphas)
             self._ax.set_ylim([0, MAX_DISTANCE_CM])
+            self._ax.set_xlim([0, self._length_in_values * 1.12])
             self._ax.yaxis.tick_right()
             self._ax.set_ylabel('Distance (cm)')
             self._ax.yaxis.set_label_position("right")
@@ -122,6 +140,13 @@ class Plotter:
             self._ax.spines['left'].set_visible(False)
             self._ax.set_xticklabels([])
             self._ax.set_xticks([])
+
+            # self._ax.imshow(needle_image,
+            #                 extent=[self._length_in_values * 0.98,
+            #                         self._length_in_values * 1.02,
+            #                         -80, 0],
+            #                 aspect='equal')
+
 
             pause(10e-3)
 
