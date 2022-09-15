@@ -7,7 +7,9 @@ from typing import Any
 import serial
 from time import sleep
 
+from matplotlib.colors import ListedColormap
 from matplotlib.pyplot import pause, subplots
+import matplotlib.cm as cm
 
 SOUND_SPEED_MPS = 343.0
 MAX_DISTANCE_CM = 20
@@ -84,8 +86,22 @@ class Plotter:
                 plot_data[n] = sum(self._memory[n-self._avg_len:n]) / self._avg_len
 
             self._ax.cla()
-            self._ax.plot(plot_data)
+
+            alphas = [i / self._length_in_values for i in range(self._length_in_values)]
+            self._ax.scatter(range(len(plot_data)), plot_data, cmap=cm.winter_r, alpha=alphas)
             self._ax.set_ylim([0, MAX_DISTANCE_CM])
+            self._ax.yaxis.tick_right()
+            self._ax.set_ylabel('Distance (cm)')
+            self._ax.yaxis.set_label_position("right")
+
+            self._ax.invert_yaxis()
+
+            self._ax.spines['top'].set_visible(False)
+            self._ax.spines['bottom'].set_visible(False)
+            self._ax.spines['left'].set_visible(False)
+            self._ax.set_xticklabels([])
+            self._ax.set_xticks([])
+
             pause(10e-3)
 
     def start(self) -> None:
