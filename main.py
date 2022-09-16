@@ -3,14 +3,16 @@ from copy import copy
 from math import floor, pi, sin
 from queue import Empty, Queue
 from threading import Thread
-from typing import Any
+from typing import Any, Generator, List, Optional, Tuple
 
 import serial
-from time import sleep
+from time import perf_counter, sleep
 
 from matplotlib import rcParams
+from matplotlib.animation import FuncAnimation
 from matplotlib.artist import Artist
-from matplotlib.pyplot import imread, pause, subplots
+from matplotlib.collections import PathCollection
+from matplotlib.pyplot import imread, pause, show, subplots
 from serial import SerialException
 
 SOUND_SPEED_MPS = 343.0
@@ -93,11 +95,16 @@ class Plotter:
     def __init__(self, pulser: Pulser, plot_length_s: float, avg_len: int):
         self._pulser = pulser
         self._length_in_values = int(floor(plot_length_s * self._pulser.rate_hz))
-        self._memory = []
+        self._memory = [-1] * self._length_in_values
         self._fig, self._ax = subplots(1, 1)
         self._fig.canvas.mpl_connect('close_event', self._on_close)
         self._fig.canvas.mpl_connect('resize_event', self._on_resize)
-        self._ax.plot(self._memory)
+
+        self._data_stream: Optional[Generator[List[float], None, None]] = None
+        self._anim: Optional[FuncAnimation] = None
+
+        self._alphas = _make_decaying_alphas(self._length_in_values)
+        self._scatter_collection: Optional[PathCollection] = None
         self._avg_len = avg_len
         self._needle_image = self._add_needle_image()
         self._fig.patch.set_facecolor('xkcd:pastel blue')
@@ -118,9 +125,39 @@ class Plotter:
     def _on_close(self, event: Any):
         self._pulser.stop()
 
-    def _plotting_loop(self) -> None:
-        self._pulser.start()
+    def _init_plot(self) -> Tuple[Artist]:
+
+        plot_data = [-1] * self._length_in_values
+        self._scatter_collection = self._ax.scatter(range(len(plot_data)), plot_data,
+                                                    c='xkcd:deep pink',
+                                                    alpha=self._alphas)
+
+        self._ax.set_ylim([0, MAX_DISTANCE_CM])
+        self._ax.set_xlim([0, self._length_in_values * 1.12])
+        self._ax.yaxis.tick_right()
+        self._ax.set_ylabel('Distance (cm)')
+        self._ax.yaxis.set_label_position("right")
+
+        self._ax.invert_yaxis()
+
+        self._ax.spines['top'].set_visible(False)
+        self._ax.spines['bottom'].set_visible(False)
+        self._ax.spines['left'].set_visible(False)
+        self._ax.set_xticklabels([])
+        self._ax.set_xticks([])
+        return self._scatter_collection,
+
+    def _update_plot(self, _) -> Tuple[Artist]:
+        self._last_t = perf_counter()
+        plot_data = next(self._data_stream)
+        if self._scatter_collection is not None:
+            self._scatter_collection.set_offsets(
+                [[i, v] for (i, v) in enumerate(plot_data)])
+        return self._scatter_collection,
+
+    def _plot_data_generator(self) -> Generator[List[float], None, None]:
         while self._pulser.is_running:
+            t = perf_counter()
             try:
                 new_distance = self._pulser.distance_queue.get(timeout=1) * 1e2
                 if new_distance > MAX_DISTANCE_CM * 5:
@@ -134,29 +171,18 @@ class Plotter:
             plot_data = copy(self._memory)
             for n in range(self._avg_len, len(plot_data)):
                 plot_data[n] = sum(self._memory[n - self._avg_len:n]) / self._avg_len
-
-            self._ax.cla()
-
-            alphas = [i / self._length_in_values for i in range(self._length_in_values)]
-            self._ax.scatter(range(len(plot_data)), plot_data, c='xkcd:deep pink', alpha=alphas)
-            self._ax.set_ylim([0, MAX_DISTANCE_CM])
-            self._ax.set_xlim([0, self._length_in_values * 1.12])
-            self._ax.yaxis.tick_right()
-            self._ax.set_ylabel('Distance (cm)')
-            self._ax.yaxis.set_label_position("right")
-
-            self._ax.invert_yaxis()
-
-            self._ax.spines['top'].set_visible(False)
-            self._ax.spines['bottom'].set_visible(False)
-            self._ax.spines['left'].set_visible(False)
-            self._ax.set_xticklabels([])
-            self._ax.set_xticks([])
-
-            pause(10e-3)
+            yield plot_data
 
     def start(self) -> None:
-        self._plotting_loop()
+        self._pulser.start()
+        self._data_stream = self._plot_data_generator()
+        self._anim = FuncAnimation(self._fig, self._update_plot,
+                                   init_func=self._init_plot, blit=True, interval=5)
+        show()
+
+
+def _make_decaying_alphas(length: int) -> List[float]:
+    return [i / length for i in range(length)]
 
 
 if __name__ == '__main__':
@@ -172,5 +198,5 @@ if __name__ == '__main__':
         print('Using mock Pulser instead.')
         pulser = MockPulser(rate_hz=PULSE_RATE_HZ)
 
-    plotter = Plotter(pulser, plot_length_s=5.0, avg_len=5)
+    plotter = Plotter(pulser, plot_length_s=5.0, avg_len=1)
     plotter.start()
