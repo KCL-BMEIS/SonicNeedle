@@ -1,4 +1,3 @@
-import random
 from abc import ABC, abstractmethod
 from copy import copy
 from math import floor, pi, sin
@@ -9,17 +8,31 @@ from typing import Any
 import serial
 from time import sleep
 
+from matplotlib import rcParams
 from matplotlib.artist import Artist
 from matplotlib.pyplot import imread, pause, subplots
+from serial import SerialException
 
 SOUND_SPEED_MPS = 343.0
-MAX_DISTANCE_CM = 20
+MAX_DISTANCE_CM = 30
+
+FONT_SIZE = 20
+plot_params = {
+    'axes.labelsize': FONT_SIZE,
+    'axes.titlesize': FONT_SIZE,
+    'font.size': FONT_SIZE,
+    'legend.fontsize': FONT_SIZE,
+    'xtick.labelsize': FONT_SIZE,
+    'ytick.labelsize': FONT_SIZE,
+    'toolbar': 'None',
+}
+rcParams.update(plot_params)
 
 
 class Pulser(ABC):
-    def __init__(self, output_queue: Queue, rate_hz: float):
+    def __init__(self, rate_hz: float):
         self._is_running = True
-        self._output_queue = output_queue
+        self._output_queue = Queue()
         self._pulse_thread = Thread(target=self._pulse_thread_function, args=(self._output_queue,))
         self._rate = rate_hz
 
@@ -53,9 +66,9 @@ class Pulser(ABC):
 
 
 class ArduinoPulser(Pulser, serial.Serial):
-    def __init__(self, output_queue: Queue, rate_hz: float, com: str = '/dev/cu.usbmodem101', baud: int = 9600):
-        Pulser.__init__(self, output_queue, rate_hz)
-        serial.Serial.__init__(self, com, baud, timeout=.1)
+    def __init__(self, rate_hz: float, port: str = '/dev/cu.usbmodem101', baud: int = 9600):
+        Pulser.__init__(self, rate_hz)
+        serial.Serial.__init__(self, port, baud, timeout=.1)
         print('Waiting for device...')
         sleep(3)
         print('Connected to ', self.name)
@@ -66,8 +79,8 @@ class ArduinoPulser(Pulser, serial.Serial):
 
 
 class MockPulser(Pulser):
-    def __init__(self, output_queue: Queue, rate_hz: float):
-        super().__init__(output_queue, rate_hz)
+    def __init__(self, rate_hz: float):
+        super().__init__(rate_hz)
         self._phase_delta = 2 * pi / rate_hz
         self._phase = -self._phase_delta
 
@@ -77,9 +90,9 @@ class MockPulser(Pulser):
 
 
 class Plotter:
-    def __init__(self, pulser: Pulser, length_s: float, avg_len: int):
+    def __init__(self, pulser: Pulser, plot_length_s: float, avg_len: int):
         self._pulser = pulser
-        self._length_in_values = int(floor(length_s * self._pulser.rate_hz))
+        self._length_in_values = int(floor(plot_length_s * self._pulser.rate_hz))
         self._memory = []
         self._fig, self._ax = subplots(1, 1)
         self._fig.canvas.mpl_connect('close_event', self._on_close)
@@ -140,13 +153,6 @@ class Plotter:
             self._ax.set_xticklabels([])
             self._ax.set_xticks([])
 
-            # self._ax.imshow(needle_image,
-            #                 extent=[self._length_in_values * 0.98,
-            #                         self._length_in_values * 1.02,
-            #                         -80, 0],
-            #                 aspect='equal')
-
-
             pause(10e-3)
 
     def start(self) -> None:
@@ -154,7 +160,17 @@ class Plotter:
 
 
 if __name__ == '__main__':
-    queue = Queue()
-    pulser = MockPulser(queue, rate_hz=20.0)
-    plotter = Plotter(pulser, length_s=5.0, avg_len=5)
+
+    PULSE_RATE_HZ = 20
+    ARDUINO_SERIAL_PORT = '/dev/cu.usbmodem101'
+
+    try:
+        pulser = ArduinoPulser(rate_hz=PULSE_RATE_HZ,
+                               port=ARDUINO_SERIAL_PORT)
+    except SerialException as e:
+        print(e)
+        print('Using mock Pulser instead.')
+        pulser = MockPulser(rate_hz=PULSE_RATE_HZ)
+
+    plotter = Plotter(pulser, plot_length_s=5.0, avg_len=5)
     plotter.start()
