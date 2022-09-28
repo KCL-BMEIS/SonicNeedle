@@ -16,6 +16,7 @@ from matplotlib.pyplot import imread, pause, show, subplots
 from serial import SerialException
 
 SOUND_SPEED_MPS = 343.0
+DISTANCE_OFFSET_CM = 2.5
 MAX_DISTANCE_CM = 30
 
 FONT_SIZE = 20
@@ -59,7 +60,7 @@ class Pulser(ABC):
 
     def _pulse_thread_function(self, output_queue: Queue) -> None:
         while self._is_running:
-            output_queue.put(SOUND_SPEED_MPS * self._read_time_of_flight() * 0.5)
+            output_queue.put(SOUND_SPEED_MPS * self._read_time_of_flight() * 0.5 - DISTANCE_OFFSET_CM * 1e-2)
             sleep(1 / self._rate)
 
     @abstractmethod
@@ -88,7 +89,7 @@ class MockPulser(Pulser):
 
     def _read_time_of_flight(self) -> float:
         self._phase += self._phase_delta
-        return (sin(self._phase) + 1) * 400e-6 + 150e-6
+        return (sin(self._phase) + 1) * 400e-6 + 180e-6
 
 
 def pulser_factory(port: str, pulse_rate_hz: float) -> Pulser:
@@ -198,7 +199,7 @@ def _make_decaying_alphas(length: int) -> List[float]:
 if __name__ == '__main__':
 
     PULSE_RATE_HZ = 20
-    ARDUINO_SERIAL_PORT = '/dev/cu.usbmodem101'
+    ARDUINO_SERIAL_PORT = '/dev/cu.usbmodem14101'
 
     pulser = pulser_factory(ARDUINO_SERIAL_PORT, PULSE_RATE_HZ)
     plotter = Plotter(pulser, plot_length_s=5.0, avg_len=1)
