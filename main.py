@@ -91,6 +91,16 @@ class MockPulser(Pulser):
         return (sin(self._phase) + 1) * 400e-6 + 150e-6
 
 
+def pulser_factory(port: str, pulse_rate_hz: float) -> Pulser:
+    try:
+        return ArduinoPulser(rate_hz=pulse_rate_hz,
+                             port=port)
+    except SerialException as e:
+        print(e)
+        print('Using mock Pulser instead.')
+        return MockPulser(rate_hz=pulse_rate_hz)
+
+
 class Plotter:
     def __init__(self, pulser: Pulser, plot_length_s: float, avg_len: int):
         self._pulser = pulser
@@ -106,19 +116,19 @@ class Plotter:
         self._alphas = _make_decaying_alphas(self._length_in_values)
         self._scatter_collection: Optional[PathCollection] = None
         self._avg_len = avg_len
-        self._needle_image = self._add_needle_image()
+        self._raw_needle_image = imread("assets/needle_2.png")
+        self._plotted_needle_image = self._add_needle_image()
         self._fig.patch.set_facecolor('xkcd:pastel blue')
         self._ax.set_facecolor('xkcd:pastel blue')
 
     def _on_resize(self, event) -> None:
-        self._needle_image.remove()
-        self._needle_image = self._add_needle_image()
+        self._plotted_needle_image.remove()
+        self._plotted_needle_image = self._add_needle_image()
 
     def _add_needle_image(self) -> Artist:
         nx = int(self._fig.get_figwidth() * self._fig.dpi)
         ny = int(self._fig.get_figheight() * self._fig.dpi)
-        needle_image = imread("assets/needle_2.png")
-        return self._fig.figimage(needle_image,
+        return self._fig.figimage(self._raw_needle_image,
                                   xo=nx * 0.8,
                                   yo=ny * 0.87)
 
@@ -190,13 +200,6 @@ if __name__ == '__main__':
     PULSE_RATE_HZ = 20
     ARDUINO_SERIAL_PORT = '/dev/cu.usbmodem101'
 
-    try:
-        pulser = ArduinoPulser(rate_hz=PULSE_RATE_HZ,
-                               port=ARDUINO_SERIAL_PORT)
-    except SerialException as e:
-        print(e)
-        print('Using mock Pulser instead.')
-        pulser = MockPulser(rate_hz=PULSE_RATE_HZ)
-
+    pulser = pulser_factory(ARDUINO_SERIAL_PORT, PULSE_RATE_HZ)
     plotter = Plotter(pulser, plot_length_s=5.0, avg_len=1)
     plotter.start()
