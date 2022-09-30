@@ -17,7 +17,8 @@ from serial import SerialException
 
 SOUND_SPEED_MPS = 343.0
 DISTANCE_OFFSET_CM = 2.5
-MAX_DISTANCE_CM = 30
+MIN_DISTANCE_CM = -2
+MAX_DISTANCE_CM = 20
 
 FONT_SIZE = 20
 plot_params = {
@@ -143,7 +144,7 @@ class Plotter:
                                                     c='xkcd:deep pink',
                                                     alpha=self._alphas)
 
-        self._ax.set_ylim([0, MAX_DISTANCE_CM])
+        self._ax.set_ylim([MIN_DISTANCE_CM, MAX_DISTANCE_CM])
         self._ax.set_xlim([0, self._length_in_values * 1.12])
         self._ax.yaxis.tick_right()
         self._ax.set_ylabel('Distance (cm)')
