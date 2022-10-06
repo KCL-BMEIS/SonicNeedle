@@ -133,7 +133,7 @@ class Plotter:
         ny = int(self._fig.get_figheight() * self._fig.dpi)
         return self._fig.figimage(self._raw_needle_image,
                                   xo=nx * 0.8,
-                                  yo=ny * 0.87)
+                                  yo=ny * 0.8)
 
     def _on_close(self, event: Any):
         self._pulser.stop()
