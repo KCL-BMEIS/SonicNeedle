@@ -1,3 +1,4 @@
+import sys
 from abc import ABC, abstractmethod
 from copy import copy
 from math import floor, pi, sin
@@ -200,7 +201,7 @@ def _make_decaying_alphas(length: int) -> List[float]:
 if __name__ == '__main__':
 
     PULSE_RATE_HZ = 20
-    ARDUINO_SERIAL_PORT = '/dev/cu.usbmodem14101'
+    ARDUINO_SERIAL_PORT = '/dev/' + sys.argv[1]  #'/dev/cu.usbmodem14101'
 
     pulser = pulser_factory(ARDUINO_SERIAL_PORT, PULSE_RATE_HZ)
     plotter = Plotter(pulser, plot_length_s=5.0, avg_len=1)
