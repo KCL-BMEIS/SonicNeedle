@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sonic Needle</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M24 4 v22" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M14 30 a14 14 0 0 0 20 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+          <path d="M9 35 a20 20 0 0 0 30 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".6"/>
+          <path d="M4 40 a27 27 0 0 0 40 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".3"/>
+        </svg>
+        <h1>Sonic Needle</h1>
+      </div>
+      <p class="tagline">Listen to the echoes and steer the needle tip to the hidden target</p>
+      <div id="status" class="status demo"><span class="dot"></span><span id="status-text">Connecting…</span></div>
+    </header>
+
+    <main>
+      <section class="scope">
+        <canvas id="display" aria-label="Live ultrasound echo display"></canvas>
+      </section>
+
+      <aside class="panel">
+        <div id="readout" class="card readout">
+          <div class="label">Distance to target</div>
+          <div class="value"><span id="distance">--.-</span><span class="unit">cm</span></div>
+          <div class="meter"><div id="meter-fill" class="meter-fill"></div></div>
+          <div id="hint" class="hint">Waiting for the sensor…</div>
+        </div>
+
+        <div class="card stats">
+          <div class="stat"><div class="label">Your time</div><div id="timer" class="stat-value">–</div></div>
+          <div class="stat"><div class="label">Best today</div><div id="best" class="stat-value">–</div></div>
+          <div class="stat"><div class="label">Echo time</div><div id="echo" class="stat-value">–</div></div>
+          <div class="stat"><div class="label">Targets found</div><div id="count" class="stat-value">0</div></div>
+        </div>
+
+        <div class="card explainer">
+          <h2>How it works</h2>
+          <ol>
+            <li><b>Ping.</b> A tiny transmitter in the needle sends out a pulse of 40&nbsp;kHz ultrasound, far too high-pitched for you to hear.</li>
+            <li><b>Echo.</b> The pulse bounces off the target and a detector in the needle picks up the echo.</li>
+            <li><b>Distance.</b> Sound travels at about 343 metres per second in air, so timing the echo tells us how far away the target is.</li>
+          </ol>
+          <p class="real-world">In hospitals, ultrasound sensors as thin as a hair, built into the needle itself, could help doctors guide the tip exactly where it needs to go.</p>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <div id="celebration" class="celebration" aria-live="polite">
+    <canvas></canvas>
+    <div class="celebration-card">
+      <div class="celebration-title">Target reached!</div>
+      <div class="celebration-time" data-time></div>
+      <div class="celebration-best" data-best></div>
+    </div>
+  </div>
+
+  <div id="sound-hint" class="sound-hint" hidden>Click anywhere to turn on sound</div>
+  <pre id="debug" class="debug" hidden></pre>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

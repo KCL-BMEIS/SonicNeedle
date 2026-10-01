@@ -1,1 +1,1 @@
-conda install pyserial matplotlib
+conda install pyserial
