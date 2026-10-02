@@ -40,6 +40,22 @@ across the switch.
 
 ## Running
 
+### Desktop app (for the event)
+
+Once, on the demo laptop, with the Python environment that has pyserial activated:
+
+```bash
+./make_app.sh             # creates "Sonic Needle" on the Desktop
+./make_app.sh --demo      # optional: "Sonic Needle Demo", with a simulated sensor
+```
+
+Double-click the app to start the demo full screen in Chrome. Press Cmd+Q to quit; this
+also stops the server. The app runs the code in this folder, so it doesn't need
+rebuilding after a `git pull`, only if the folder or the Python environment moves. If
+something goes wrong, the server's output is in `~/Library/Logs/SonicNeedle.log`.
+
+### From a terminal
+
 ```bash
 python main.py                    # find the Arduino automatically
 python main.py cu.usbmodem101     # or name the serial port

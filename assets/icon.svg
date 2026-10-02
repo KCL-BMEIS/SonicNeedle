@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14304d"/>
+      <stop offset="1" stop-color="#050a12"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5b6673"/>
+      <stop offset="0.3" stop-color="#eef2f6"/>
+      <stop offset="0.6" stop-color="#aab4bf"/>
+      <stop offset="1" stop-color="#4a535e"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff4070" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#ff4070" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="tipglow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#38e1ff" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#38e1ff" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="tile"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+  </defs>
+
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <g clip-path="url(#tile)">
+    <!-- echo target -->
+    <circle cx="512" cy="760" r="150" fill="url(#glow)"/>
+    <ellipse cx="512" cy="760" rx="92" ry="50" fill="none" stroke="#ff4070" stroke-width="18"/>
+    <ellipse cx="512" cy="760" rx="38" ry="20" fill="#ff4070"/>
+
+    <!-- ultrasound pulses -->
+    <g fill="none" stroke="#38e1ff" stroke-linecap="round" stroke-width="22">
+      <path d="M432 470 A110 110 0 0 0 592 470"/>
+      <path d="M372 520 A180 180 0 0 0 652 520" opacity="0.7"/>
+      <path d="M312 570 A250 250 0 0 0 712 570" opacity="0.4"/>
+    </g>
+
+    <!-- needle -->
+    <path d="M482 60 H542 V330 L482 420 Z" fill="url(#metal)"/>
+    <path d="M542 330 L492 405 L482 420 Z" fill="#ffffff" opacity="0.45"/>
+    <circle cx="505" cy="350" r="60" fill="url(#tipglow)"/>
+    <circle cx="505" cy="350" r="12" fill="#ffffff"/>
+  </g>
+</svg>
