@@ -261,7 +261,7 @@ class MockPulser(Pulser):
                 yield None, False
 
             # Advance towards the target, sometimes easing off or backing up
-            distance = rng.uniform(15, 18)
+            distance = rng.uniform(22, 28)
             t = 0.0
             while distance > 0:
                 t += dt
@@ -278,6 +278,6 @@ class MockPulser(Pulser):
             for _ in range(int(1.0 / dt)):
                 yield self._echo(0.3)
             distance = 0.3
-            while distance < 19:
+            while distance < 29:
                 distance += 9 * dt
                 yield self._echo(distance)

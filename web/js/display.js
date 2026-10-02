@@ -13,10 +13,11 @@ export class Display {
     this.ctx = canvas.getContext('2d');
     this.historySeconds = historySeconds;
     this.minCm = -2;
-    this.maxCm = 20;
+    this.maxCm = 30;
     this.trace = [];  // {t, d}, d = null where there was no echo
     this.pings = [];  // {born, d}
     this.readingCount = 0;
+    this.lastNeedleCm = null;
     this.lastRender = null;
     this.shiftRemainder = 0;
     this.mmode = document.createElement('canvas');
@@ -244,10 +245,22 @@ export class Display {
 
   // ---- Right: needle, pings and target -----------------------------------
 
+  // The target stays put near the bottom and the needle moves down towards it. This
+  // view has its own scale, fitted so the needle tip is at the top at max distance.
+  needleViewLayout(distanceCm) {
+    const { col: c, fontSize: fs } = this;
+    const targetY = c.y + c.h - fs * 2.6 - c.w * 0.13;
+    const pxPerCm = (targetY - c.y - fs) / this.maxCm;
+    if (distanceCm != null) this.lastNeedleCm = distanceCm;
+    // Hold the needle where it was last seen, and keep its tip in view
+    const needleCm = Math.min(this.lastNeedleCm ?? this.maxCm, this.maxCm);
+    return { targetY, pxPerCm, tipY: targetY - needleCm * pxPerCm };
+  }
+
   drawNeedleView(now, view) {
     const { ctx, col: c, dpr, fontSize: fs } = this;
     const cx = c.x + c.w * 0.5;
-    const tipY = this.yOf(0);
+    const { targetY, pxPerCm, tipY } = this.needleViewLayout(view.distance);
 
     ctx.save();
     roundRect(ctx, c.x, c.y, c.w, c.h, 10 * dpr);
@@ -258,12 +271,11 @@ export class Display {
     ctx.fill();
     ctx.clip();
 
-    const hasTarget = view.distance != null;
-    const targetY = hasTarget ? this.yOf(view.distance) : null;
+    const hasEcho = view.distance != null;
     const targetRGB = view.hit ? HIT_RGB : proximityRGB(view.distance);
 
     // Beam between tip and target
-    if (hasTarget && targetY > tipY) {
+    if (hasEcho && targetY > tipY) {
       const beam = ctx.createLinearGradient(0, tipY, 0, targetY);
       beam.addColorStop(0, 'rgba(56, 225, 255, 0.10)');
       beam.addColorStop(1, rgba(targetRGB, 0.18));
@@ -279,9 +291,10 @@ export class Display {
       ctx.fill();
     }
 
-    this.drawPings(now, cx, tipY);
-    if (hasTarget) this.drawTarget(now, cx, targetY, targetRGB, view.hit);
+    this.drawPings(now, cx, tipY, targetY, pxPerCm);
+    this.drawTarget(now, cx, targetY, targetRGB, view.hit);
     this.drawNeedle(now, cx, tipY, view.hit);
+    this.drawGap(cx + c.w * 0.3, tipY, targetY, hasEcho ? view.distance : null, targetRGB);
     ctx.restore();
 
     // Labels
@@ -292,9 +305,45 @@ export class Display {
     ctx.fillText('NEEDLE VIEW', c.x + fs * 0.2, c.y - fs * 0.9);
     ctx.font = `${fs * 0.85}px ${FONT}`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = rgba(hasTarget ? targetRGB : [138, 160, 189], 0.95);
-    const labelY = hasTarget ? Math.min(targetY + c.w * 0.2 + fs, c.y + c.h - fs * 0.6) : c.y + c.h - fs;
-    ctx.fillText(hasTarget ? 'TARGET' : 'NO ECHO', cx, labelY);
+    ctx.fillStyle = rgba(targetRGB, 0.95);
+    ctx.fillText('TARGET', cx, c.y + c.h - fs * 0.9);
+  }
+
+  // A dimension line from the needle tip down to the target, labelled with the gap
+  drawGap(x, tipY, targetY, distanceCm, rgb) {
+    const { ctx, dpr, fontSize: fs } = this;
+    const midY = (tipY + targetY) / 2;
+    const label = distanceCm == null ? 'NO ECHO' : `${Math.max(distanceCm, 0).toFixed(1)} cm`;
+    if (distanceCm != null && targetY - tipY > fs * 2.5) {
+      const tick = fs * 0.35;
+      ctx.strokeStyle = rgba(rgb, 0.6);
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.setLineDash([4 * dpr, 4 * dpr]);
+      ctx.beginPath();
+      ctx.moveTo(x, tipY);
+      ctx.lineTo(x, targetY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(x - tick, tipY);
+      ctx.lineTo(x + tick, tipY);
+      ctx.moveTo(x - tick, targetY);
+      ctx.lineTo(x + tick, targetY);
+      ctx.stroke();
+    } else if (distanceCm != null) {
+      return;  // too close to fit a label; the target glow says it all
+    }
+    ctx.font = `600 ${fs * 0.85}px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const w = ctx.measureText(label).width + fs * 0.8;
+    const h = fs * 1.5;
+    ctx.fillStyle = 'rgba(8, 18, 32, 0.85)';
+    roundRect(ctx, x - w / 2, midY - h / 2, w, h, h / 2);
+    ctx.fill();
+    ctx.fillStyle = rgba(rgb, 0.95);
+    ctx.fillText(label, x, midY);
+    ctx.textBaseline = 'alphabetic';
   }
 
   drawNeedle(now, cx, tipY, hit) {
@@ -337,7 +386,7 @@ export class Display {
     ctx.lineWidth = 1 * dpr;
   }
 
-  drawPings(now, cx, tipY) {
+  drawPings(now, cx, tipY, targetY, pxPerCm) {
     const { ctx, col: c, dpr } = this;
     const speed = c.h * 1.1;  // px per second, slowed right down so you can see it
     const spread = 0.55;
@@ -345,21 +394,23 @@ export class Display {
     ctx.lineWidth = 2.5 * dpr;
     for (const p of this.pings) {
       const travelled = Math.max(now - p.born, 0) * speed;
-      const targetDepth = p.d == null ? Infinity : this.yOf(p.d) - tipY;
-      if (travelled < targetDepth) {
+      // Each ping leaves from where the tip was when it was sent
+      const gap = p.d == null ? Infinity : p.d * pxPerCm;
+      const originY = p.d == null ? tipY : targetY - gap;
+      if (travelled < gap) {
         const fade = 1 - travelled / (c.h * 1.1);
         if (fade <= 0) continue;
         ctx.strokeStyle = `rgba(200, 245, 255, ${0.7 * fade})`;
         ctx.beginPath();
-        ctx.arc(cx, tipY, travelled, Math.PI / 2 - spread, Math.PI / 2 + spread);
+        ctx.arc(cx, originY, travelled, Math.PI / 2 - spread, Math.PI / 2 + spread);
         ctx.stroke();
       } else {
-        const back = travelled - targetDepth;
-        if (back > targetDepth) continue;
+        const back = travelled - gap;
+        if (back > gap) continue;
         const rgb = proximityRGB(p.d);
-        ctx.strokeStyle = rgba(rgb, 0.85 * (1 - back / Math.max(targetDepth, 1)) + 0.15);
+        ctx.strokeStyle = rgba(rgb, 0.85 * (1 - back / Math.max(gap, 1)) + 0.15);
         ctx.beginPath();
-        ctx.arc(cx, tipY + targetDepth, back, -Math.PI / 2 - spread, -Math.PI / 2 + spread);
+        ctx.arc(cx, targetY, back, -Math.PI / 2 - spread, -Math.PI / 2 + spread);
         ctx.stroke();
       }
     }

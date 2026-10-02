@@ -14,6 +14,16 @@ from threading import Timer
 from pulser import ArduinoPulser, MockPulser, Pulser
 from server import EventHub, make_server
 
+# ---- Demo settings (each can also be overridden on the command line) ----
+
+# How far the needle tip sticks out ahead of the ultrasound sensor. This is subtracted
+# from the measured distance, so 0 cm means the needle tip is touching the target.
+NEEDLE_TIP_OFFSET_CM = 9.0
+
+# Vertical range of the echo trace, in cm from the needle tip to the target
+MIN_DISTANCE_CM = -2.0
+MAX_DISTANCE_CM = 30.0
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__,
@@ -23,10 +33,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--mock', action='store_true', help='simulate the sensor instead of using the Arduino')
     parser.add_argument('--baud', type=int, default=115200)
     parser.add_argument('--rate', type=float, default=20, help='pulse rate in Hz (default: %(default)s)')
-    parser.add_argument('--offset-cm', type=float, default=2.5,
-                        help='distance from the sensor to the needle tip (default: %(default)s)')
-    parser.add_argument('--min-cm', type=float, default=-2, help='top of the depth scale (default: %(default)s)')
-    parser.add_argument('--max-cm', type=float, default=20, help='bottom of the depth scale (default: %(default)s)')
+    parser.add_argument('--offset-cm', type=float, default=NEEDLE_TIP_OFFSET_CM,
+                        help='how far the needle tip sticks out ahead of the sensor (default: %(default)s)')
+    parser.add_argument('--min-cm', type=float, default=MIN_DISTANCE_CM,
+                        help='top of the depth scale (default: %(default)s)')
+    parser.add_argument('--max-cm', type=float, default=MAX_DISTANCE_CM,
+                        help='bottom of the depth scale (default: %(default)s)')
     parser.add_argument('--median', type=int, default=3,
                         help='median filter length in samples, 1 to disable (default: %(default)s)')
     parser.add_argument('--hit-distance', type=float, default=None, metavar='CM',

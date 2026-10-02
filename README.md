@@ -53,10 +53,11 @@ If the Arduino is unplugged, the display shows a red warning and reconnects auto
 when it's plugged back in. It never silently falls back to simulated data, so use
 `--mock` explicitly for demos without the hardware.
 
-`python main.py --help` lists the options, including:
+The needle tip offset and the depth range are set at the top of `main.py`.
+`python main.py --help` lists the command line options, which override them:
 
-- `--offset-cm`: distance from the sensor to the needle tip (default 2.5)
-- `--min-cm`, `--max-cm`: depth scale (default -2 to 20)
+- `--offset-cm`: how far the needle tip sticks out ahead of the sensor (default 9)
+- `--min-cm`, `--max-cm`: depth scale (default -2 to 30)
 - `--median`: median filter length to reject spurious echoes (default 3; 1 disables it)
 - `--hit-distance CM`: also count a hit when closer than this, if the switch isn't wired
 
