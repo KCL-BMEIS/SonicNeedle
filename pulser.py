@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from statistics import median
 from threading import Thread
 from time import perf_counter, sleep
-from typing import Callable, Deque, Generator, Optional, Tuple
+from typing import Callable, Deque, Generator, List, Optional, Tuple
 
 import serial
 from serial import SerialException
@@ -124,13 +124,16 @@ def normalise_port_name(port: str) -> str:
     return '/dev/' + port
 
 
-def find_arduino_port() -> Optional[str]:
-    for port in list_ports.comports():
+def find_arduino_ports() -> List[str]:
+    """USB serial ports that might be the Arduino, most likely first."""
+    likely, possible = [], []
+    for port in sorted(list_ports.comports(), key=lambda p: p.device or ''):
         device = port.device or ''
-        if port.vid in ARDUINO_USB_VIDS or any(
-                s in device for s in ('usbmodem', 'usbserial', 'ttyACM', 'ttyUSB')):
-            return device
-    return None
+        if port.vid in ARDUINO_USB_VIDS:
+            likely.append(device)
+        elif any(s in device for s in ('usbmodem', 'usbserial', 'ttyACM', 'ttyUSB')):
+            possible.append(device)
+    return likely + possible
 
 
 def parse_sample(line: str) -> Sample:
@@ -150,7 +153,8 @@ class ArduinoPulser(Pulser):
         self._port = normalise_port_name(port) if port else None
         # If replies are unreadable, try the other baud rate in case the Arduino has older firmware
         self._bauds = [baud] + [b for b in (115200, LEGACY_FIRMWARE_BAUD) if b != baud]
-        self._baud_index = 0
+        # Which (port, baud) combination to try; moves on when a device doesn't reply properly
+        self._attempt = 0
         self._bad_replies = 0
         self._serial: Optional[serial.Serial] = None
         self._last_status: Optional[Tuple[str, str]] = None
@@ -166,11 +170,13 @@ class ArduinoPulser(Pulser):
             self._on_status(state, detail)
 
     def _connect(self) -> bool:
-        port = self._port or find_arduino_port()
-        if port is None:
+        # Search afresh each time, as the port name can change when the Arduino is replugged
+        ports = [self._port] if self._port else find_arduino_ports()
+        if not ports:
             self._set_status('disconnected', 'No Arduino found - check the USB cable')
             return False
-        baud = self._bauds[self._baud_index]
+        options = [(p, b) for p in ports for b in self._bauds]
+        port, baud = options[self._attempt % len(options)]
         try:
             self._set_status('connecting', f'Connecting to {port} at {baud} baud')
             self._serial = serial.Serial(port, baud, timeout=0.1)
@@ -210,10 +216,10 @@ class ArduinoPulser(Pulser):
         port, baud = self._serial.port, self._serial.baudrate
         reply = repr(raw[:24]) if raw else 'nothing'
         self._set_status('no_response',
-                         f'Arduino on {port} sent {reply} at {baud} baud - '
-                         f'is NewScientistLive.ino uploaded? Trying another baud rate...')
+                         f'{port} sent {reply} at {baud} baud - is NewScientistLive.ino '
+                         f'uploaded? Trying other settings...')
         self._close()
-        self._baud_index = (self._baud_index + 1) % len(self._bauds)
+        self._attempt += 1
         return None
 
     def _close(self) -> None:
