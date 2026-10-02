@@ -42,7 +42,7 @@ across the switch.
 
 ### Desktop app (for the event)
 
-Once, on the demo laptop, with the Python environment that has pyserial activated:
+On the demo laptop, with the Python environment that has pyserial activated:
 
 ```bash
 ./make_app.sh             # creates "Sonic Needle" on the Desktop
@@ -50,9 +50,12 @@ Once, on the demo laptop, with the Python environment that has pyserial activate
 ```
 
 Double-click the app to start the demo full screen in Chrome. Press Cmd+Q to quit; this
-also stops the server. The app runs the code in this folder, so it doesn't need
-rebuilding after a `git pull`, only if the folder or the Python environment moves. If
-something goes wrong, the server's output is in `~/Library/Logs/SonicNeedle.log`.
+also stops the server. If something goes wrong, the server's output is in
+`~/Library/Logs/SonicNeedle.log`.
+
+macOS doesn't let apps like this read Desktop, Documents or Downloads, so the script
+copies the code to `~/Library/Application Support/SonicNeedle`. **After a `git pull`,
+run `./make_app.sh` again** to update the app.
 
 ### From a terminal
 

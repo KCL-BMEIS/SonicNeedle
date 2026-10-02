@@ -5,14 +5,19 @@
 #   ./make_app.sh --demo    # "Sonic Needle Demo": simulated sensor, no hardware needed
 #
 # Run it from a terminal in which the Python environment with pyserial is active,
-# e.g. after `conda activate ...`. The app remembers that Python and this folder,
-# so after a `git pull` there's no need to rebuild it, unless the folder moves.
+# e.g. after `conda activate ...`. The app remembers that Python.
+#
+# The code is copied to ~/Library/Application Support/SonicNeedle, because macOS won't
+# let apps like this read Desktop, Documents or Downloads, where the repo may live.
+# So after a `git pull`, run this script again to update the app.
 #
 # Opening the app starts the server in the background and opens the display full
 # screen in Chrome. Quit with Cmd+Q, which also stops the server.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")" && pwd)"
+SUPPORT_DIR="$HOME/Library/Application Support/SonicNeedle"
+CODE_DIR="$SUPPORT_DIR/code"
 NAME="Sonic Needle"
 MAIN_ARGS=""
 if [[ "${1:-}" == "--demo" ]]; then
@@ -34,6 +39,12 @@ if [[ -z "$PYTHON" ]]; then
   echo "(or run: conda install pyserial) and try again." >&2
   exit 1
 fi
+case "$PYTHON" in
+  "$HOME/Desktop/"* | "$HOME/Documents/"* | "$HOME/Downloads/"* | /Volumes/*)
+    echo "Warning: this Python is in a folder macOS may not let the app use:"
+    echo "  $PYTHON"
+    ;;
+esac
 
 if [[ ! -d "/Applications/Google Chrome.app" ]]; then
   echo "Warning: Google Chrome isn't installed. The app will fall back to the default"
@@ -41,8 +52,14 @@ if [[ ! -d "/Applications/Google Chrome.app" ]]; then
 fi
 
 echo "Building $APP"
-echo "  code:   $REPO"
 echo "  python: $PYTHON"
+echo "  code:   copied to $CODE_DIR"
+
+# Copy just what the server needs
+rm -rf "$CODE_DIR"
+mkdir -p "$CODE_DIR"
+cp -R "$REPO/main.py" "$REPO/pulser.py" "$REPO/server.py" "$REPO/web" "$CODE_DIR/"
+
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
@@ -66,7 +83,7 @@ EOF
 # The launcher. Values from this build are baked in at the top.
 {
   echo '#!/bin/bash'
-  printf 'REPO=%q\n' "$REPO"
+  printf 'CODE=%q\n' "$CODE_DIR"
   printf 'PYTHON=%q\n' "$PYTHON"
   printf 'MAIN_ARGS=%q\n' "$MAIN_ARGS"
   cat <<'EOF'
@@ -86,21 +103,25 @@ if pgrep -f -- "--user-data-dir=$PROFILE" >/dev/null; then
 fi
 
 # Stop a server left over from a previous run that didn't shut down cleanly
-pkill -f -- "$REPO/main.py" 2>/dev/null && sleep 1
+pkill -f -- "$CODE/main.py" 2>/dev/null && sleep 1
 
-if [[ ! -f "$REPO/main.py" ]]; then
-  alert "Can't find the Sonic Needle code in $REPO. If the folder has moved, run make_app.sh again."
+if [[ ! -f "$CODE/main.py" ]]; then
+  alert "The Sonic Needle code is missing from $CODE. Run make_app.sh again to reinstall it."
   exit 1
 fi
 
-"$PYTHON" -u "$REPO/main.py" --http-port "$PORT" $MAIN_ARGS >"$LOG" 2>&1 &
+"$PYTHON" -u "$CODE/main.py" --http-port "$PORT" $MAIN_ARGS >"$LOG" 2>&1 &
 SERVER=$!
 trap 'kill $SERVER 2>/dev/null' EXIT
 
 for _ in $(seq 50); do
   curl -s -o /dev/null "$URL" && break
   if ! kill -0 $SERVER 2>/dev/null; then
-    alert "The Sonic Needle server didn't start. Details are in $LOG"
+    if grep -q "Operation not permitted" "$LOG"; then
+      alert "macOS blocked the app from reading a file it needs. Details are in $LOG"
+    else
+      alert "The Sonic Needle server didn't start. Details are in $LOG"
+    fi
     exit 1
   fi
   sleep 0.2
@@ -137,3 +158,4 @@ rm -rf "$ICON_TMP"
 touch "$APP"  # nudge Finder to pick up the icon
 
 echo "Done. Double-click \"$NAME\" on the Desktop to start; Cmd+Q to quit."
+echo "After pulling code changes, run this script again to update the app."
