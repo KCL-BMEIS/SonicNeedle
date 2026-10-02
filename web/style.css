@@ -74,8 +74,10 @@ h1 {
   background: var(--panel);
   font-size: 0.85rem;
   color: var(--muted);
-  white-space: nowrap;
+  max-width: 40vw;
 }
+
+.status .dot { flex: none; }
 
 .status .dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: currentColor; }
 .status.good .dot { color: var(--hit); box-shadow: 0 0 0.5rem var(--hit); }

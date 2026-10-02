@@ -25,7 +25,13 @@ const bool FEEDBACK_ENABLED = true;
 const unsigned long ECHO_TIMEOUT_US = 30000;  // ~5 m round trip, beyond US-100 range
 const unsigned long BAUD = 115200;
 
+// The switch must read closed continuously for this long to count, so electrical
+// noise or a wire brushing past a GND pin isn't mistaken for a hit.
+const unsigned long HIT_DEBOUNCE_MS = 15;
+
 bool hitSinceLastReport = false;
+bool wasClosed = false;
+unsigned long closedSinceMs = 0;
 
 void setup() {
   Serial.begin(BAUD);
@@ -38,7 +44,15 @@ void setup() {
 }
 
 bool targetTouched() {
-  return digitalRead(TARGET_PIN) == LOW;
+  if (digitalRead(TARGET_PIN) == HIGH) {
+    wasClosed = false;
+    return false;
+  }
+  if (!wasClosed) {
+    wasClosed = true;
+    closedSinceMs = millis();
+  }
+  return millis() - closedSinceMs >= HIT_DEBOUNCE_MS;
 }
 
 void updateTarget() {

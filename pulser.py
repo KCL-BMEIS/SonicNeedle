@@ -16,6 +16,8 @@ SOUND_SPEED_MPS = 343.0
 MAX_VALID_DISTANCE_CM = 100.0
 ARDUINO_USB_VIDS = {0x2341, 0x2A03, 0x1A86, 0x0403, 0x10C4}  # Arduino, clones' CH340/FTDI/CP210x
 RECONNECT_INTERVAL_S = 1.0
+BAD_REPLY_LIMIT = 20  # consecutive unreadable replies before assuming a firmware/baud problem
+LEGACY_FIRMWARE_BAUD = 9600
 
 # Raw measurement: (round-trip echo time in µs or None if no echo, target switch closed)
 Sample = Tuple[Optional[float], bool]
@@ -146,7 +148,10 @@ class ArduinoPulser(Pulser):
                  baud: int = 115200, **kwargs):
         super().__init__(rate_hz, offset_cm, **kwargs)
         self._port = normalise_port_name(port) if port else None
-        self._baud = baud
+        # If replies are unreadable, try the other baud rate in case the Arduino has older firmware
+        self._bauds = [baud] + [b for b in (115200, LEGACY_FIRMWARE_BAUD) if b != baud]
+        self._baud_index = 0
+        self._bad_replies = 0
         self._serial: Optional[serial.Serial] = None
         self._last_status: Optional[Tuple[str, str]] = None
 
@@ -165,16 +170,17 @@ class ArduinoPulser(Pulser):
         if port is None:
             self._set_status('disconnected', 'No Arduino found - check the USB cable')
             return False
+        baud = self._bauds[self._baud_index]
         try:
-            self._set_status('connecting', f'Connecting to {port}')
-            self._serial = serial.Serial(port, self._baud, timeout=0.1)
+            self._set_status('connecting', f'Connecting to {port} at {baud} baud')
+            self._serial = serial.Serial(port, baud, timeout=0.1)
             sleep(2)  # opening the port resets the Arduino; wait for it to boot
             self._serial.reset_input_buffer()
         except (SerialException, OSError) as e:
             self._serial = None
             self._set_status('disconnected', f'Could not open {port}: {e}')
             return False
-        self._set_status('connected', f'Connected to {port}')
+        self._bad_replies = 0
         return True
 
     def _measure(self) -> Optional[Sample]:
@@ -183,15 +189,32 @@ class ArduinoPulser(Pulser):
             return None
         try:
             self._serial.write(b'?')
-            line = self._serial.readline().decode(errors='ignore')
+            raw = self._serial.readline()
         except (SerialException, OSError) as e:
             self._close()
             self._set_status('disconnected', f'Lost connection: {e}')
             return None
         try:
-            return parse_sample(line)
+            sample = parse_sample(raw.decode(errors='ignore'))
         except ValueError:
-            return None, False  # timed out or garbled; treat as a missed echo
+            return self._bad_reply(raw)
+        self._bad_replies = 0
+        self._set_status('connected', f'Connected to {self._serial.port} at {self._serial.baudrate} baud')
+        return sample
+
+    def _bad_reply(self, raw: bytes) -> Optional[Sample]:
+        """A timed-out or garbled reply: a missed echo, unless it keeps happening."""
+        self._bad_replies += 1
+        if self._bad_replies < BAD_REPLY_LIMIT:
+            return None, False
+        port, baud = self._serial.port, self._serial.baudrate
+        reply = repr(raw[:24]) if raw else 'nothing'
+        self._set_status('no_response',
+                         f'Arduino on {port} sent {reply} at {baud} baud - '
+                         f'is NewScientistLive.ino uploaded? Trying another baud rate...')
+        self._close()
+        self._baud_index = (self._baud_index + 1) % len(self._bauds)
+        return None
 
     def _close(self) -> None:
         if self._serial is not None:
