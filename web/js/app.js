@@ -4,11 +4,18 @@ import { HIT_RGB, proximityRGB, rgba } from './colors.js';
 import { Display } from './display.js';
 import { Game } from './game.js';
 
-// Tune these to the box. Distances are from the needle tip to the target.
+// Distances that start and end a round, from the needle tip to the target. Left as
+// null they follow the depth range set in main.py (MAX_DISTANCE_CM): a round (the
+// timer and sonar beeps) starts once the target is 2 cm inside the bottom of the
+// range, and the needle counts as withdrawn beyond it. Set a number to override.
+const ROUND_START_BELOW_CM = null;
+const ROUND_RESET_ABOVE_CM = null;
+
+// Tune these to the box.
 const CONFIG = {
   historySeconds: 6,          // width of the echo trace
-  startBelowCm: 16,           // the timer starts once the target is closer than this
-  resetAboveCm: 18,           // further than this counts as "needle withdrawn"
+  startBelowCm: null,         // set by applyDepthRange()
+  resetAboveCm: null,         // set by applyDepthRange()
   abandonAfterSeconds: 2,     // withdrawn this long mid-attempt: reset for the next visitor
   celebrateSeconds: 5,
   withdrawTimeoutSeconds: 20, // give up waiting for withdrawal and reset anyway
@@ -47,6 +54,14 @@ let lastPointerMove = 0;
 
 const nowS = () => performance.now() / 1000;
 
+function applyDepthRange(minCm, maxCm) {
+  display.setRange(minCm, maxCm);
+  CONFIG.startBelowCm = ROUND_START_BELOW_CM ?? maxCm - 2;
+  CONFIG.resetAboveCm = ROUND_RESET_ABOVE_CM ?? maxCm;
+  sonar.farCm = CONFIG.startBelowCm;  // slowest beeps at the start of a round
+}
+applyDepthRange(display.minCm, display.maxCm);  // until the server sends the real range
+
 // ---- Data from the Python server ----------------------------------------
 
 function connect() {
@@ -55,7 +70,7 @@ function connect() {
   events.addEventListener('error', () => { serverConnected = false; });
   events.addEventListener('config', (e) => {
     const config = JSON.parse(e.data);
-    display.setRange(config.min_cm, config.max_cm);
+    applyDepthRange(config.min_cm, config.max_cm);
   });
   events.addEventListener('status', (e) => { sensor = JSON.parse(e.data); });
   events.addEventListener('reading', (e) => onReading(JSON.parse(e.data)));

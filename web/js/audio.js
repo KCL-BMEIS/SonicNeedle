@@ -1,13 +1,12 @@
 // Parking-sensor style sonar pings that speed up and rise in pitch as the needle
 // nears the target, plus a fanfare when it is reached.
-const FAR_CM = 15;
-
 export class Sonar {
   constructor() {
     this.ctx = null;
     this.master = null;
     this.muted = false;
     this.nextPing = 0;
+    this.farCm = 15;  // distance with the slowest, lowest beeps
     this.ensureContext();
   }
 
@@ -43,7 +42,7 @@ export class Sonar {
       return;
     }
     if (now < this.nextPing) return;
-    const far = Math.min(Math.max(distance / FAR_CM, 0), 1);
+    const far = Math.min(Math.max(distance / this.farCm, 0), 1);
     this.ping(1500 - 800 * far);
     this.nextPing = now + 0.08 + 0.8 * far;
   }
