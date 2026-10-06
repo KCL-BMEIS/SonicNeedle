@@ -19,7 +19,8 @@ Arduino --USB serial--> main.py --Server-Sent Events--> browser (web/)
 conda install pyserial        # or: pip install -r requirements.txt
 ```
 
-Upload `NewScientistLive.ino` to the Arduino.
+Upload the sketch to the Arduino: in the Arduino IDE, open
+`NewScientistLive/NewScientistLive.ino` (File → Open) and click Upload.
 
 ### Wiring
 
