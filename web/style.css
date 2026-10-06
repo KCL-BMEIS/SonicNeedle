@@ -36,7 +36,7 @@ body.hide-cursor, body.hide-cursor * { cursor: none; }
   grid-template-rows: auto 1fr;
   gap: 0.8rem;
   height: 100vh;
-  padding: 0.9rem 1.4rem 1.2rem;
+  padding: 0.9rem 1.4rem 1.55rem;
 }
 
 /* ---- Header ---- */
@@ -256,6 +256,30 @@ main {
 
 /* ---- Staff helpers ---- */
 
+/* Sits in the page's bottom margin, so it doesn't take space from the panels */
+.shortcuts {
+  position: fixed;
+  right: 1.4rem;
+  bottom: 0.3rem;
+  display: flex;
+  gap: 1.1em;
+  font-size: 0.8rem;
+  line-height: 1;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.shortcuts kbd {
+  margin-right: 0.3em;
+  padding: 0.1em 0.35em;
+  border: 1px solid var(--panel-edge);
+  border-radius: 0.25em;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+}
+
 .sound-hint {
   position: fixed;
   left: 50%;
@@ -291,4 +315,5 @@ main {
   header { flex-wrap: wrap; gap: 0.6rem 1rem; }
   main { grid-template-columns: 1fr; }
   .scope { height: 70vh; }
+  .shortcuts { position: static; flex-wrap: wrap; gap: 0.6em 1.1em; padding: 0 1.4rem 1.2rem; line-height: 1.4; }
 }

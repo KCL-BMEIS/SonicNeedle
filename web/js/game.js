@@ -9,6 +9,11 @@
 const TODAY_KEY = 'sonic-needle-stats';
 const ALL_TIME_KEY = 'sonic-needle-record';
 
+// A timed round only starts from the top of the box: within this distance of the start
+// line, or after the needle has been pulled out. Otherwise a needle left deep in the box
+// (or touching the target when the app restarts) would give an impossibly fast time.
+const START_ZONE_CM = 5;
+
 export class Game {
   constructor(config, onHit) {
     this.config = config;
@@ -19,6 +24,8 @@ export class Game {
     this.result = null;
     this.farSince = null;
     this.lostSince = null;
+    this.seenOut = false;  // needle pulled out since the last round
+    this.wasHit = true;  // a touch already under way at startup isn't a new one
     this.setStorageScope('sensor');
   }
 
@@ -36,6 +43,8 @@ export class Game {
 
   reading(now, distance, hit) {
     const c = this.config;
+    const newTouch = hit && !this.wasHit;  // resting on the target doesn't count again
+    this.wasHit = hit;
     if (distance == null) {
       this.lostSince ??= now;
     } else {
@@ -44,16 +53,19 @@ export class Game {
     }
     const farFor = this.farSince == null ? 0 : now - this.farSince;
     const lostFor = this.lostSince == null ? 0 : now - this.lostSince;
+    if (this.farSince != null || lostFor > 0.5) this.seenOut = true;
 
     switch (this.state) {
-      case 'ready':
-        if (hit) {
-          this.finish(now, null);
-        } else if (distance != null && distance < c.startBelowCm) {
+      case 'ready': {
+        const fromTop = this.seenOut || distance > c.startBelowCm - START_ZONE_CM;
+        if (newTouch) {
+          this.finish(now, null);  // reached the target, but without a timed approach
+        } else if (!hit && distance != null && distance < c.startBelowCm && fromTop) {
           this.startTime = now;
           this.setState('active', now);
         }
         break;
+      }
       case 'active':
         if (hit) this.finish(now, now - this.startTime);
         else if (farFor > c.abandonAfterSeconds) this.setState('ready', now);
@@ -97,6 +109,7 @@ export class Game {
     if (newRecord) this.allTime.best = elapsed;
     this.saveRecords();
     this.result = { elapsed, newBest, newRecord };
+    this.seenOut = false;
     this.setState('celebrate', now);
     this.onHit(this.result, this.stats);
   }

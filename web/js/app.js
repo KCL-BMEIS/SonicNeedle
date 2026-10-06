@@ -182,7 +182,6 @@ function updateDebug(now) {
     `server: ${serverConnected ? 'connected' : 'offline'}   sensor: ${sensor.state} (${sensor.detail})`,
     `readings/s: ${readingTimes.length}   game: ${game.state}   audio: ${sonar.ctx?.state ?? 'none'}${sonar.muted ? ' (muted)' : ''}`,
     `last: ${JSON.stringify(lastReading)}`,
-    'keys: F fullscreen · M mute · R reset round · Shift+R clear today · Shift+A clear all records · D debug',
   ].join('\n');
 }
 
