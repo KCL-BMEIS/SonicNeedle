@@ -59,8 +59,9 @@ copies the code to `~/Library/Application Support/SonicNeedle`. **After a `git p
 run `./make_app.sh` again** to update the app.
 
 `Update Sonic Needle.command` does both in one go: double-click it to pull the latest code
-into `~/Documents/SonicNeedle` and rebuild the app(s), using the same Python as before. To
-put it on the Desktop:
+into `~/Documents/SonicNeedle` and rebuild the app(s), using the same Python as before. It
+also puts a shortcut to `Sonic Needle Volunteer Guide.pdf` on the Desktop. To put the
+update script itself on the Desktop:
 
 ```bash
 ln -s ~/Documents/SonicNeedle/"Update Sonic Needle.command" ~/Desktop/

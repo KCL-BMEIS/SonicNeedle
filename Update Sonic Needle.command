@@ -47,6 +47,18 @@ if [[ -d "$HOME/Desktop/Sonic Needle Demo.app" ]]; then
   ./make_app.sh --demo || finish 1
 fi
 
+# Desktop shortcut to the volunteer guide (points at the repo copy, so it stays current)
+GUIDE="Sonic Needle Volunteer Guide.pdf"
+echo
+if [[ -e "$HOME/Desktop/$GUIDE" && ! -L "$HOME/Desktop/$GUIDE" ]]; then
+  echo "Left the existing \"$GUIDE\" on the Desktop alone (it's a copy, not a shortcut)."
+  echo "To get the latest guide each update, delete it and run this again."
+elif [[ -f "$REPO/$GUIDE" ]]; then
+  ln -sfn "$REPO/$GUIDE" "$HOME/Desktop/$GUIDE" && echo "Volunteer guide shortcut is on the Desktop."
+else
+  echo "Couldn't find $GUIDE in $REPO, so no guide shortcut was made."
+fi
+
 echo
 echo "=== Update complete. Double-click Sonic Needle on the desktop to start. ==="
 finish 0
