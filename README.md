@@ -57,6 +57,14 @@ macOS doesn't let apps like this read Desktop, Documents or Downloads, so the sc
 copies the code to `~/Library/Application Support/SonicNeedle`. **After a `git pull`,
 run `./make_app.sh` again** to update the app.
 
+`Update Sonic Needle.command` does both in one go: double-click it to pull the latest code
+into `~/Documents/SonicNeedle` and rebuild the app(s), using the same Python as before. To
+put it on the Desktop:
+
+```bash
+ln -s ~/Documents/SonicNeedle/"Update Sonic Needle.command" ~/Desktop/
+```
+
 ### From a terminal
 
 ```bash
