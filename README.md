@@ -87,12 +87,19 @@ The needle tip offset and the depth range are set at the top of `main.py`.
 | F | Toggle full screen |
 | M | Mute or unmute sound |
 | R | Reset the current round |
-| Shift+R | Clear today's best time and target count |
+| Shift+R | Clear today's best time and target count (asks first) |
+| Shift+A | Clear all records, all-time and today's (asks first) |
 | D | Show debug info |
 
 ### Tuning to the box
 
-Round timing thresholds are at the top of `web/js/app.js` (`CONFIG`). The timer starts when
-the target is closer than `startBelowCm`. After a hit, the next round starts once the needle
-is withdrawn beyond `resetAboveCm`. Set these to suit the box depth. The best time and
-target count are stored in the browser and reset each day.
+A round (the timer and sonar beeps) starts once the target is 2 cm inside the bottom of the
+depth range, and the next round starts once the needle is withdrawn beyond it. To set
+these by hand, use `ROUND_START_BELOW_CM` and `ROUND_RESET_ABOVE_CM` at the top of
+`web/js/app.js`.
+
+### Records
+
+Today's best time and target count, and the all-time record and total, are stored in the
+demo's Chrome profile, so they survive restarts. Today's start afresh at midnight. The
+simulated sensor keeps separate records, so demo mode can't set the real record.

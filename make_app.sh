@@ -90,15 +90,20 @@ EOF
 PORT=8000
 URL="http://localhost:$PORT"
 LOG="$HOME/Library/Logs/SonicNeedle.log"
-CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+CHROME_APP="/Applications/Google Chrome.app"
 PROFILE="$HOME/Library/Application Support/SonicNeedle/chrome-profile"
 
 alert() {
   osascript -e "display alert \"Sonic Needle\" message \"$1\" as critical" >/dev/null 2>&1
 }
 
-# Already open? Leave it alone rather than starting a second copy.
-if pgrep -f -- "--user-data-dir=$PROFILE" >/dev/null; then
+# Already open, perhaps hidden behind other windows? Bring it to the front instead.
+# (Matches the demo's own Chrome only: not its helper processes or anyone's normal Chrome.)
+EXISTING="$(pgrep -f -- "MacOS/Google Chrome --.*--user-data-dir=$PROFILE" | head -1)"
+if [[ -n "$EXISTING" ]]; then
+  osascript -l JavaScript -e "ObjC.import('AppKit');
+    var app = \$.NSRunningApplication.runningApplicationWithProcessIdentifier($EXISTING);
+    if (!app.isNil()) app.activateWithOptions(\$.NSApplicationActivateIgnoringOtherApps);" >/dev/null 2>&1
   exit 0
 fi
 
@@ -127,9 +132,11 @@ for _ in $(seq 50); do
   sleep 0.2
 done
 
-if [[ -x "$CHROME" ]]; then
-  # Runs until Chrome is quit (Cmd+Q), then the trap stops the server
-  "$CHROME" --kiosk --no-first-run --no-default-browser-check \
+if [[ -d "$CHROME_APP" ]]; then
+  # A separate Chrome just for the demo, even if Chrome is already open (-n). Going
+  # through `open` brings it to the front; -W waits until it's quit (Cmd+Q), then
+  # the trap stops the server.
+  open -n -W -a "$CHROME_APP" --args --kiosk --no-first-run --no-default-browser-check \
     --autoplay-policy=no-user-gesture-required \
     --user-data-dir="$PROFILE" "$URL" >>"$LOG" 2>&1
 else

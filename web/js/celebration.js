@@ -14,14 +14,17 @@ export class Celebration {
 
   show(result, stats) {
     this.timeEl.textContent = result.elapsed == null ? '' : `in ${result.elapsed.toFixed(1)} seconds`;
-    if (result.newBest) {
+    if (result.newRecord) {
+      this.bestEl.textContent = '★ New all-time record! ★';
+    } else if (result.newBest) {
       this.bestEl.textContent = '★ New best today! ★';
     } else if (stats.best != null) {
       this.bestEl.textContent = `Best today: ${stats.best.toFixed(1)} s`;
     } else {
       this.bestEl.textContent = '';
     }
-    this.bestEl.classList.toggle('is-best', result.newBest);
+    this.bestEl.classList.toggle('is-best', result.newBest || result.newRecord);
+    this.bestEl.classList.toggle('is-record', result.newRecord);
     this.root.classList.add('show');
     this.burst();
   }

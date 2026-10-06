@@ -28,7 +28,8 @@ const $ = (id) => document.getElementById(id);
 const els = {
   status: $('status'), statusText: $('status-text'), distance: $('distance'),
   readout: $('readout'), meter: $('meter-fill'), hint: $('hint'), timer: $('timer'),
-  best: $('best'), echo: $('echo'), count: $('count'), debug: $('debug'), soundHint: $('sound-hint'),
+  best: $('best'), echo: $('echo'), count: $('count'), record: $('record'), countAll: $('count-all'),
+  debug: $('debug'), soundHint: $('sound-hint'),
 };
 
 const display = new Display($('display'), CONFIG.historySeconds);
@@ -71,6 +72,7 @@ function connect() {
   events.addEventListener('config', (e) => {
     const config = JSON.parse(e.data);
     applyDepthRange(config.min_cm, config.max_cm);
+    game.setStorageScope(config.mode);
   });
   events.addEventListener('status', (e) => { sensor = JSON.parse(e.data); });
   events.addEventListener('reading', (e) => onReading(JSON.parse(e.data)));
@@ -146,8 +148,11 @@ function updatePanel(now, hit) {
   const elapsed = game.elapsed(now);
   setText(els.timer, elapsed == null ? '–' : `${elapsed.toFixed(1)} s`);
   els.timer.classList.toggle('running', game.state === 'active');
-  setText(els.best, game.stats.best == null ? '–' : `${game.stats.best.toFixed(1)} s`);
+  const seconds = (t) => (t == null ? '–' : `${t.toFixed(1)} s`);
+  setText(els.best, seconds(game.stats.best));
   setText(els.count, `${game.stats.count}`);
+  setText(els.record, seconds(game.allTime.best));
+  setText(els.countAll, `${game.allTime.count}`);
   setText(els.echo, live && shownCm != null ? `${Math.round(lastValidEchoUs)} µs` : '–');
 
   els.soundHint.hidden = sonar.ready || sonar.muted;
@@ -177,7 +182,7 @@ function updateDebug(now) {
     `server: ${serverConnected ? 'connected' : 'offline'}   sensor: ${sensor.state} (${sensor.detail})`,
     `readings/s: ${readingTimes.length}   game: ${game.state}   audio: ${sonar.ctx?.state ?? 'none'}${sonar.muted ? ' (muted)' : ''}`,
     `last: ${JSON.stringify(lastReading)}`,
-    'keys: F fullscreen · M mute · R reset round · Shift+R clear today\'s stats · D debug',
+    'keys: F fullscreen · M mute · R reset round · Shift+R clear today · Shift+A clear all records · D debug',
   ].join('\n');
 }
 
@@ -202,12 +207,19 @@ window.addEventListener('keydown', (e) => {
     case 'd': case 'D':
       els.debug.hidden = !els.debug.hidden;
       break;
-    case 'r':
-      game.reset(nowS());
+    case 'r': case 'R':
+      if (!e.shiftKey) {
+        game.reset(nowS());
+      } else if (confirm("Clear today's best time and target count?")) {
+        game.clearToday();
+        game.reset(nowS());
+      }
       break;
-    case 'R':
-      game.clearStats();
-      game.reset(nowS());
+    case 'a': case 'A':
+      if (e.shiftKey && confirm('Clear ALL records: the all-time record and today\'s stats?\nThis cannot be undone.')) {
+        game.clearAll();
+        game.reset(nowS());
+      }
       break;
   }
 });
