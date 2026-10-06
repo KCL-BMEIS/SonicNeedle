@@ -76,8 +76,9 @@ export class Display {
     this.rowNoise = Float32Array.from({ length: this.mmode.height }, () => Math.random());
   }
 
+  // Distance to the target runs upwards: 0 cm (touching) near the bottom
   yOf(cm) {
-    return this.scope.y + ((cm - this.minCm) / (this.maxCm - this.minCm)) * this.scope.h;
+    return this.scope.y + ((this.maxCm - cm) / (this.maxCm - this.minCm)) * this.scope.h;
   }
 
   render(now, view) {
@@ -113,7 +114,7 @@ export class Display {
     const span = this.maxCm - this.minCm;
     const noise = this.rowNoise;
     for (let y = 0; y < h; y++) {
-      const cm = this.minCm + ((y + 0.5) / h) * span;
+      const cm = this.maxCm - ((y + 0.5) / h) * span;
       for (let x = 0; x < n; x++) {
         // A reflectivity per row that changes only occasionally gives the horizontal
         // speckle streaks of a real M-mode image
@@ -122,9 +123,9 @@ export class Display {
         const grain = 0.6 + 0.8 * Math.random();
         let v;
         if (cm < 0) {
-          v = 4 + Math.random() * 4;  // behind the tip: the sensor looks forwards
+          v = 4 + Math.random() * 4;  // past the target
         } else {
-          v = r * r * r * 120 * grain * Math.exp(-cm / 30) + 70 * Math.exp(-cm / 0.4);  // speckle + ring-down
+          v = r * r * r * 120 * grain * Math.exp(-cm / 30);  // speckle
           if (d != null) {
             const z = (cm - d) / ECHO_WIDTH_CM;
             v += 255 * Math.exp(-z * z) * grain;
@@ -172,7 +173,7 @@ export class Display {
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(138, 160, 189, 0.85)';
-    ctx.fillText('Depth below needle tip (cm)', 0, 0);
+    ctx.fillText('Distance to target (cm)', 0, 0);
     ctx.restore();
 
     // Titles
@@ -245,16 +246,14 @@ export class Display {
 
   // ---- Right: needle, pings and target -----------------------------------
 
-  // The target stays put near the bottom and the needle moves down towards it. This
-  // view has its own scale, fitted so the needle tip is at the top at max distance.
+  // The target sits on the 0 cm line and the needle moves down towards it, on the same
+  // scale as the echo trace, so the needle tip lines up with the head of the trace.
   needleViewLayout(distanceCm) {
-    const { col: c, fontSize: fs } = this;
-    const targetY = c.y + c.h - fs * 2.6 - c.w * 0.13;
-    const pxPerCm = (targetY - c.y - fs) / this.maxCm;
+    const pxPerCm = this.scope.h / (this.maxCm - this.minCm);
     if (distanceCm != null) this.lastNeedleCm = distanceCm;
     // Hold the needle where it was last seen, and keep its tip in view
     const needleCm = Math.min(this.lastNeedleCm ?? this.maxCm, this.maxCm);
-    return { targetY, pxPerCm, tipY: targetY - needleCm * pxPerCm };
+    return { targetY: this.yOf(0), pxPerCm, tipY: this.yOf(needleCm) };
   }
 
   drawNeedleView(now, view) {
@@ -303,10 +302,19 @@ export class Display {
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = 'rgba(232, 241, 255, 0.9)';
     ctx.fillText('NEEDLE VIEW', c.x + fs * 0.2, c.y - fs * 0.9);
-    ctx.font = `${fs * 0.85}px ${FONT}`;
-    ctx.textAlign = 'center';
+    // Beside the target (there's little room below it), shrunk if the view is narrow
+    const clearOfTarget = cx - c.w * 0.13 * 1.25;
+    let size = fs * 0.85;
+    ctx.font = `${size}px ${FONT}`;
+    const room = clearOfTarget - (c.x + fs * 0.4);
+    const width = ctx.measureText('TARGET').width;
+    if (width > room) size = Math.max(size * room / width, fs * 0.55);
+    ctx.font = `${size}px ${FONT}`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
     ctx.fillStyle = rgba(targetRGB, 0.95);
-    ctx.fillText('TARGET', cx, c.y + c.h - fs * 0.9);
+    ctx.fillText('TARGET', clearOfTarget, targetY);
+    ctx.textBaseline = 'alphabetic';
   }
 
   // A dimension line from the needle tip down to the target, labelled with the gap
